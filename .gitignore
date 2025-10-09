@@ -1,0 +1,10 @@
+# IDE and OS-specific files
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# Log files
+*.log
+npm-debug.log*
