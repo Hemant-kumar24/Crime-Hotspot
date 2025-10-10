@@ -5,6 +5,7 @@ const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const crimeDataRoutes = require("./routes/crimeDataRoutes");
+const firRoutes = require("./routes/firRoutes");
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/crime-data", crimeDataRoutes);
+app.use("/api/fir", firRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });

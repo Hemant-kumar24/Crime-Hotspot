@@ -25,22 +25,27 @@ const DashboardMap = ({
     if (!layerVisibility.heatmap || !heatmapPoints.length) return null;
     return heatmapPoints.map((point, index) => {
       const radius = 8 + point.count * 1.1;
+      const color = getHeatColor(point.normalized_count ?? 0.4);
+      const intensityLabel =
+        point.normalized_count >= 0.75 ? "High" : point.normalized_count >= 0.4 ? "Medium" : "Low";
       return (
         <CircleMarker
           key={`heat-${index.toString()}`}
           center={[point.lat, point.lon]}
           radius={radius}
           pathOptions={{
-            color: getHeatColor(point.normalized_count ?? 0.4),
+            color,
             weight: 1.2,
-            fillColor: "#ffffff",
-            fillOpacity: 0.85,
+            fillColor: color,
+            fillOpacity: 0.75,
           }}
         >
           <Tooltip>
             <strong>{point.crime_type}</strong>
             <br />
             Total incidents: {point.count}
+            <br />
+            Intensity level: {intensityLabel}
             <br />
             Latest report: {point.date}
           </Tooltip>
@@ -124,51 +129,68 @@ const DashboardMap = ({
 
   return (
     <section className="dashboard__map">
-      <MapContainer center={DEFAULT_CENTER} zoom={12.5} minZoom={11} maxZoom={18} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <LayerGroup>{heatmapMarkers}</LayerGroup>
-        <LayerGroup>{clusterCircles}</LayerGroup>
-        <LayerGroup>{patrolPolylines}</LayerGroup>
-        <LayerGroup>{safePolylines}</LayerGroup>
-        <LayerGroup>{womenSafetyMarkers}</LayerGroup>
-        <LayerGroup>
-          {incidents.map((incident) => (
-            <CircleMarker
-              key={`${incident.id}-incident`}
-              center={incident.coordinates}
-              radius={6}
-              pathOptions={{
-                color: getSeverityColor(incident.severity),
-                weight: 1.2,
-                fillColor: "#ffffff",
-                fillOpacity: 0.85,
-              }}
-            >
-              <Tooltip>
-                <strong>{incident.type}</strong>
-                <br />
-                {incident.location}
-                <br />
-                {incident.description}
-              </Tooltip>
-            </CircleMarker>
-          ))}
-        </LayerGroup>
-      </MapContainer>
+      <div className="dashboard__map-canvas">
+        <MapContainer
+          center={DEFAULT_CENTER}
+          zoom={12.5}
+          minZoom={11}
+          maxZoom={18}
+          scrollWheelZoom
+          style={{ height: "100%", width: "100%" }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <LayerGroup>{heatmapMarkers}</LayerGroup>
+          <LayerGroup>{clusterCircles}</LayerGroup>
+          <LayerGroup>{patrolPolylines}</LayerGroup>
+          <LayerGroup>{safePolylines}</LayerGroup>
+          <LayerGroup>{womenSafetyMarkers}</LayerGroup>
+          <LayerGroup>
+            {incidents.map((incident) => (
+              <CircleMarker
+                key={`${incident.id}-incident`}
+                center={incident.coordinates}
+                radius={6}
+                pathOptions={{
+                  color: getSeverityColor(incident.severity),
+                  weight: 1.2,
+                  fillColor: "#ffffff",
+                  fillOpacity: 0.85,
+                }}
+              >
+                <Tooltip>
+                  <strong>{incident.type}</strong>
+                  <br />
+                  {incident.location}
+                  <br />
+                  {incident.description}
+                </Tooltip>
+              </CircleMarker>
+            ))}
+          </LayerGroup>
+        </MapContainer>
 
-      {heatmapLoading ? <div className="map-status">Loading crime heatmap...</div> : null}
-      {heatmapInfo && !heatmapError ? <div className="map-status map-status--info">{heatmapInfo}</div> : null}
-      {heatmapError ? <div className="map-status map-status--error">{heatmapError}</div> : null}
+        {heatmapLoading ? <div className="map-status">Loading crime heatmap...</div> : null}
+        {heatmapInfo && !heatmapError ? <div className="map-status map-status--info">{heatmapInfo}</div> : null}
+        {heatmapError ? <div className="map-status map-status--error">{heatmapError}</div> : null}
+      </div>
 
       <div className="map-legend">
         <p>Legend</p>
         <ul>
           <li>
-            <span className="legend-dot legend-dot--heat" />
-            Aggregated Density
+            <span className="legend-dot legend-dot--heat-low" />
+            Low crime intensity
+          </li>
+          <li>
+            <span className="legend-dot legend-dot--heat-medium" />
+            Medium crime intensity
+          </li>
+          <li>
+            <span className="legend-dot legend-dot--heat-high" />
+            High crime intensity
           </li>
           <li>
             <span className="legend-dot legend-dot--cluster" />

@@ -1,15 +1,9 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Outlet } from "react-router-dom";
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import api from "../services/api";
-import DashboardFilters from "../components/DashboardFilters";
-import MetricCards from "../components/MetricCards";
-import DashboardMap from "../components/DashboardMap";
-import DashboardCharts from "../components/DashboardCharts";
-import AlertsPanel from "../components/AlertsPanel";
-import RoutePanel from "../components/RoutePanel";
-import IncidentList from "../components/IncidentList";
-import HeatmapFilterBar from "../components/HeatmapFilterBar";
+import DashboardSidebar from "../components/DashboardSidebar";
 import { mockDashboardData } from "../data/mockDashboardData";
 
 dayjs.extend(isBetween);
@@ -17,6 +11,17 @@ dayjs.extend(isBetween);
 const DATASET_LATEST_DATE = mockDashboardData.incidents
   .map((incident) => dayjs(incident.date))
   .reduce((latest, current) => (current.isAfter(latest) ? current : latest), dayjs(mockDashboardData.incidents[0].date));
+
+const DASHBOARD_LINKS = [
+  { label: "Overview", to: "." },
+  { label: "Heatmap", to: "heatmap" },
+  { label: "Analytics", to: "analytics" },
+  { label: "Predictive Analysis", to: "predictive" },
+  { label: "Patrol Routes", to: "routes" },
+  { label: "Alerts", to: "alerts" },
+  { label: "Incidents", to: "incidents" },
+  { label: "File a Report", to: "report" },
+];
 
 const Dashboard = () => {
   const [data, setData] = useState(mockDashboardData);
@@ -120,25 +125,25 @@ const Dashboard = () => {
 
       const points = Array.from(grouped.values()).map((entry) => {
         const dominantType =
-          Array.from(entry.typeCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Unknown";
+          Array.from(entry.typeCounts.entries()).reduce(
+            (best, current) => (current[1] > best[1] ? current : best),
+            ["unknown", 0]
+          )[0] ?? "Unknown";
+
+        const normalized = entry.totalIntensity / entry.count;
         return {
           lat: entry.lat,
           lon: entry.lon,
           count: entry.count,
-          avg_intensity: Number((entry.totalIntensity / entry.count).toFixed(3)),
+          intensity: entry.totalIntensity,
+          normalized_count: Math.min(1, Math.max(0, normalized)),
           date: entry.latestDate,
           crime_type: dominantType,
         };
       });
 
-      const maxCount = points.reduce((acc, point) => Math.max(acc, point.count), 0) || 1;
-      const normalized = points.map((point) => ({
-        ...point,
-        normalized_count: Number((point.count / maxCount).toFixed(3)),
-      }));
-
       return {
-        points: normalized,
+        points,
         meta: localHeatmapMeta,
       };
     },
@@ -167,7 +172,7 @@ const Dashboard = () => {
           setHeatmapInfo("");
           setHeatmapError("");
         }
-      } catch (fetchError) {
+      } catch {
         const fallback = computeLocalHeatmap(filterValues);
         setHeatmapPoints(fallback.points);
         setHeatmapMeta(fallback.meta);
@@ -191,7 +196,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchHeatmapData(heatmapFilters);
-  }, [fetchHeatmapData, heatmapFilters.date, heatmapFilters.crimeType]);
+  }, [fetchHeatmapData, heatmapFilters]);
 
   useEffect(() => {
     if (filters.onlyWomenSafety) {
@@ -217,104 +222,100 @@ const Dashboard = () => {
     });
   }, [data.incidents, filters]);
 
-  const handleFilterChange = (name, value) => {
+  const handleFilterChange = useCallback((name, value) => {
     setFilters((prev) => ({
       ...prev,
       [name]: value,
     }));
-  };
+  }, []);
 
-  const handleLayerToggle = (layerKey) => {
+  const handleLayerToggle = useCallback((layerKey) => {
     setLayerVisibility((prev) => ({
       ...prev,
       [layerKey]: !prev[layerKey],
     }));
-  };
+  }, []);
 
-  const handleHeatmapFilterChange = (name, value) => {
+  const handleHeatmapFilterChange = useCallback((name, value) => {
     setHeatmapFilters((prev) => ({
       ...prev,
       [name]: value,
     }));
-  };
+  }, []);
 
-  const handleHeatmapReset = () => {
+  const handleHeatmapReset = useCallback(() => {
     setHeatmapFilters({ date: "", crimeType: "" });
-  };
+  }, []);
 
-    return (
-    <main className="dashboard">
-      <header className="dashboard__header">
-        <div>
-          <h1>Operational Dashboard</h1>
-          <p>Track crime hotspots, predictions, and patrol readiness across Delhi jurisdiction.</p>
-        </div>
-        {isSyncing ? <span className="dashboard__sync">Syncing latest intelligence...</span> : null}
-        {error ? <span className="dashboard__error">{error}</span> : null}
-      </header>
+  const refreshHeatmap = useCallback(() => {
+    fetchHeatmapData(heatmapFilters);
+  }, [fetchHeatmapData, heatmapFilters]);
 
-      <MetricCards metrics={data.metrics} />
+  const outletContext = useMemo(
+    () => ({
+      data,
+      error,
+      isSyncing,
+      hydrateDashboard,
+      filters,
+      handleFilterChange,
+      layerVisibility,
+      handleLayerToggle,
+      availableTypes,
+      filteredIncidents,
+      heatmapFilters,
+      heatmapMeta,
+      handleHeatmapFilterChange,
+      handleHeatmapReset,
+      refreshHeatmap,
+      heatmapLoading,
+      heatmapPoints,
+      heatmapInfo,
+      heatmapError,
+      heatmapFallback,
+    }),
+    [
+      data,
+      error,
+      isSyncing,
+      hydrateDashboard,
+      filters,
+      handleFilterChange,
+      layerVisibility,
+      handleLayerToggle,
+      availableTypes,
+      filteredIncidents,
+      heatmapFilters,
+      heatmapMeta,
+      handleHeatmapFilterChange,
+      handleHeatmapReset,
+      refreshHeatmap,
+      heatmapLoading,
+      heatmapPoints,
+      heatmapInfo,
+      heatmapError,
+      heatmapFallback,
+    ]
+  );
 
-      <DashboardFilters
-        filters={filters}
-        onChange={handleFilterChange}
-        layerVisibility={layerVisibility}
-        onToggleLayer={handleLayerToggle}
-        availableTypes={availableTypes}
-      />
-
-      <HeatmapFilterBar
-        filters={heatmapFilters}
-        meta={heatmapMeta}
-        onChange={handleHeatmapFilterChange}
-        onReset={handleHeatmapReset}
-        isLoading={heatmapLoading}
-      />
-
-      <section className="dashboard__content">
-        <DashboardMap
-          incidents={filteredIncidents}
-          clusters={data.clusters}
-          patrolRoutes={data.patrolRoutes}
-          safeRoutes={data.safeRoutes}
-          layerVisibility={layerVisibility}
-          heatmapPoints={heatmapPoints}
-          heatmapLoading={heatmapLoading}
-          heatmapError={heatmapError}
-          heatmapInfo={heatmapInfo}
-        />
-
-        <section className="dashboard__panel hotspot-panel">
-          <h2>Hotspot Intelligence</h2>
-          <ul className="hotspot-list">
-            {data.clusters.map((cluster) => (
-              <li key={cluster.id}>
-                <div>
-                  <strong>{cluster.label}</strong>
-                  <p>Dominant pattern: {cluster.primaryType}</p>
-                </div>
-                <code>{Math.round(cluster.score * 100)}% risk</code>
-              </li>
-            ))}
-          </ul>
-        </section>
+  return (
+    <main className="dashboard dashboard-shell">
+      <DashboardSidebar links={DASHBOARD_LINKS} />
+      <section className="dashboard-main">
+        <header className="dashboard__header">
+          <div>
+            <h1>Operational Dashboard</h1>
+            <p>Track crime hotspots, predictions, and patrol readiness across Delhi jurisdiction.</p>
+          </div>
+          <div className="dashboard-main__signals">
+            {isSyncing ? <span className="dashboard__sync">Syncing latest intelligence...</span> : null}
+            {error ? <span className="dashboard__error">{error}</span> : null}
+          </div>
+        </header>
+        <Outlet context={outletContext} />
       </section>
-
-      <DashboardCharts predictionData={data.predictions?.nextWeek} incidentBreakdown={data.predictions?.byType} />
-
-      <RoutePanel patrolRoutes={data.patrolRoutes} safeRoutes={data.safeRoutes} />
-
-      <AlertsPanel alerts={data.alerts} />
-
-      <IncidentList incidents={filteredIncidents.slice(0, 8)} />
     </main>
   );
 };
 
 export default Dashboard;
-
-
-
-
-
-

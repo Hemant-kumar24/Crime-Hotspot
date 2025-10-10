@@ -10,10 +10,9 @@ export const getSeverityColor = (severity = "low") => {
 };
 
 export const getHeatColor = (density = 0) => {
-  if (density >= 0.85) return "#b91c1c";
-  if (density >= 0.7) return "#f97316";
-  if (density >= 0.5) return "#fbbf24";
-  return "#22c55e";
+  if (density >= 0.75) return "#b91c1c";
+  if (density >= 0.4) return "#facc15";
+  return "#16a34a";
 };
 
 export const getSeverityBadgeClass = (severity = "low") => {
